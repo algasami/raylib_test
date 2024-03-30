@@ -11,16 +11,21 @@
 #include <emscripten/emscripten.h>
 #endif
 
-#define NOISE_ROW 30
-#define NOISE_COL 30
-
 uint32_t screenWidth = 1200;
 uint32_t screenHeight = 1200;
 
-Camera3D camera;
+Camera2D camera;
 
-Mesh cubeMesh;
-Model cubeModels[NOISE_ROW][NOISE_COL];
+inline float Vector2Magnitude(Vector2 const x) {
+    return sqrtf(x.x * x.x + x.y * x.y);
+}
+
+inline Vector2 Vector2Unit(Vector2 const x) {
+    float mag = Vector2Magnitude(x);
+    if (mag == 0.0f)
+        return (Vector2){0.0f, 0.0f};
+    return (Vector2){x.x / mag, x.y / mag};
+}
 
 void UpdateDrawFrame();
 int main() {
@@ -28,18 +33,11 @@ int main() {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "basic window");
 
-    camera.fovy = 45.0f;
-    camera.position = (Vector3){1.0f, 10.0f, 1.0f};
-    camera.target = (Vector3){0.0f, 0.0f, 0.0f};
-    camera.projection = CAMERA_PERSPECTIVE;
-    camera.up = (Vector3){0.0f, 1.0f, 0.0f};
-
-    cubeMesh = GenMeshCube(1.0f, 5.0f, 1.0f);
-
-    for (size_t i = 0; i < NOISE_ROW; i++)
-        for (size_t j = 0; j < NOISE_COL; j++) {
-            cubeModels[i][j] = LoadModelFromMesh(cubeMesh);
-        }
+    camera.offset =
+        (Vector2){(float)screenWidth / 2.0f, (float)screenHeight / 2.0f};
+    camera.rotation = 0.0f;
+    camera.target = (Vector2){0.0f, 0.0f};
+    camera.zoom = 2.0f;
 
     EnableCursor();
 
@@ -61,12 +59,6 @@ void UpdateDrawFrame() {
     float dt = GetFrameTime();
     float ft = (float)GetTime();
 
-    if (IsCursorHidden())
-        UpdateCamera(&camera, CAMERA_FREE);
-
-    Image noiseImage = GenImagePerlinNoise(NOISE_COL, NOISE_ROW,
-                                           (uint32_t)(ft * 20.0f), 0, 1.0f);
-
     ClearBackground(BLACK);
 
     if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
@@ -75,21 +67,47 @@ void UpdateDrawFrame() {
         EnableCursor();
     }
 
+    if (IsCursorHidden()) {
+        camera.target =
+            Vector2Add(Vector2Scale(GetMouseDelta(), 100.0f * dt / camera.zoom),
+                       camera.target);
+    }
+    camera.zoom =
+        Clamp(camera.zoom + GetMouseWheelMove() * 300.0f * dt, 2.0f, 100.0f);
+
+    // This converts our mouse cursor (local relative to window)
+    // to absolute coord with camera
+    Vector2 cursorPos;
+    if (!IsCursorHidden()) {
+        Vector2 rawPos = GetMousePosition();
+        cursorPos = Vector2Add(
+            Vector2Scale((Vector2){(rawPos.x / (float)screenWidth - 0.5f) *
+                                       (float)screenWidth,
+                                   (rawPos.y / (float)screenHeight - 0.5f) *
+                                       (float)screenHeight},
+                         1.0f / camera.zoom),
+            camera.target);
+    } else {
+        cursorPos = camera.target;
+    }
+
     // start command buffer recording
     BeginDrawing();
     {
-        BeginMode3D(camera);
-        for (size_t i = 0; i < NOISE_ROW; i++)
-            for (size_t j = 0; j < NOISE_COL; j++) {
-                Color colorData = ((Color *)noiseImage.data)[i * NOISE_COL + j];
-                float height = (float)colorData.r / 255.0f;
-                DrawModel(cubeModels[i][j],
-                          (Vector3){(float)i, height * 10.0f, (float)j}, 1.0f,
-                          ColorFromHSV(170.0f, 1.0f, height));
+        BeginMode2D(camera);
+        for (uint32_t i = 0; i < 100; i++)
+            for (uint32_t j = 0; j < 100; j++) {
+                Vector2 pos = (Vector2){(float_t)i * 10.0f, (float_t)j * 10.0f};
+                float dist = Vector2DistanceSqr(pos, cursorPos);
+                DrawRectangle(
+                    (uint32_t)pos.x, (uint32_t)pos.y, 8, 8,
+                    ColorFromHSV(0.0f, 1.0f,
+                                 Clamp(10000.0f / dist, 0.0f, 100.0f) /
+                                     100.0f));
             }
-        EndMode3D();
         DrawFPS(0, 0);
+        EndMode2D();
+        // stop command buffer recording
+        EndDrawing();
     }
-    // stop command buffer recording
-    EndDrawing();
 }
