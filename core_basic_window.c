@@ -6,35 +6,63 @@
 #include "raymath.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 
-uint32_t screenWidth = 1200;
-uint32_t screenHeight = 1200;
+#define SCREEN_WIDTH 1200
+#define SCREEN_HEIGHT 1200
+
+#define DOT_ROW 100
+#define DOT_COL 100
+
+#define LIGHT_SPEED 100000.0f
+
+#define MAX_FIELDS 1000
 
 Camera2D camera;
+inline float_t Vector2MagnitudeSqr(Vector2 const x) {
+    return x.x * x.x + x.y * x.y;
+}
 
-inline float Vector2Magnitude(Vector2 const x) {
+inline float_t Vector2Magnitude(Vector2 const x) {
     return sqrtf(x.x * x.x + x.y * x.y);
 }
 
 inline Vector2 Vector2Unit(Vector2 const x) {
-    float mag = Vector2Magnitude(x);
+    float_t mag = Vector2Magnitude(x);
     if (mag == 0.0f)
-        return (Vector2){0.0f, 0.0f};
+        return x;
     return (Vector2){x.x / mag, x.y / mag};
 }
+
+inline float_t absf(float_t x) { return x < 0.0f ? -x : x; }
+
+typedef struct {
+    Vector2 origin;
+    float_t startTime;
+    float_t weight; // for g field, it's GM. for e field, it's kQ
+} ForceField;
+
+ForceField *currentFields;
+Vector2 (*forces)[DOT_COL];
+size_t fieldSize = 0;
 
 void UpdateDrawFrame();
 int main() {
     // Initialization
+    currentFields = (ForceField *)malloc(MAX_FIELDS * sizeof(ForceField));
+    forces = (Vector2(*)[DOT_COL])malloc(DOT_ROW * DOT_COL * sizeof(Vector2));
+    // ^ mental gymnastics!
+
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(screenWidth, screenHeight, "basic window");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "basic window");
 
     camera.offset =
-        (Vector2){(float)screenWidth / 2.0f, (float)screenHeight / 2.0f};
+        (Vector2){(float)SCREEN_WIDTH / 2.0f, (float)SCREEN_HEIGHT / 2.0f};
     camera.rotation = 0.0f;
     camera.target = (Vector2){0.0f, 0.0f};
     camera.zoom = 2.0f;
@@ -51,13 +79,18 @@ int main() {
         UpdateDrawFrame();
     }
 #endif
+
     CloseWindow();
+
+    free(currentFields);
+    free(forces);
+
     return 0;
 }
 
 void UpdateDrawFrame() {
-    float dt = GetFrameTime();
-    float ft = (float)GetTime();
+    float_t dt = GetFrameTime();
+    float_t ft = (float)GetTime();
 
     ClearBackground(BLACK);
 
@@ -81,32 +114,60 @@ void UpdateDrawFrame() {
     if (!IsCursorHidden()) {
         Vector2 rawPos = GetMousePosition();
         cursorPos = Vector2Add(
-            Vector2Scale((Vector2){(rawPos.x / (float)screenWidth - 0.5f) *
-                                       (float)screenWidth,
-                                   (rawPos.y / (float)screenHeight - 0.5f) *
-                                       (float)screenHeight},
+            Vector2Scale((Vector2){(rawPos.x / (float)SCREEN_WIDTH - 0.5f) *
+                                       (float)SCREEN_WIDTH,
+                                   (rawPos.y / (float)SCREEN_HEIGHT - 0.5f) *
+                                       (float)SCREEN_HEIGHT},
                          1.0f / camera.zoom),
             camera.target);
     } else {
         cursorPos = camera.target;
     }
 
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        currentFields[fieldSize++] = (ForceField){cursorPos, ft, 1000.0f};
+    }
+
     // start command buffer recording
+    memset(forces, 0, DOT_ROW * DOT_COL * sizeof(Vector2));
     BeginDrawing();
     {
         BeginMode2D(camera);
-        for (uint32_t i = 0; i < 100; i++)
-            for (uint32_t j = 0; j < 100; j++) {
-                Vector2 pos = (Vector2){(float_t)i * 10.0f, (float_t)j * 10.0f};
-                float dist = Vector2DistanceSqr(pos, cursorPos);
-                DrawRectangle(
-                    (uint32_t)pos.x, (uint32_t)pos.y, 8, 8,
-                    ColorFromHSV(0.0f, 1.0f,
-                                 Clamp(10000.0f / dist, 0.0f, 100.0f) /
-                                     100.0f));
+        for (uint32_t f = 0; f < fieldSize; f++) {
+            ForceField *const field = &currentFields[f];
+            float delta = ft - field->startTime;
+            for (uint32_t i = 0; i < DOT_ROW; i++)
+                for (uint32_t j = 0; j < DOT_COL; j++) {
+                    int32_t px = i * 10, py = j * 10;
+                    Vector2 pos = (Vector2){(float_t)px, (float_t)py};
+                    Vector2 subVec = Vector2Subtract(field->origin, pos);
+                    float_t distSqr = Vector2MagnitudeSqr(subVec);
+                    if (distSqr / LIGHT_SPEED > delta)
+                        continue;
+
+                    float_t calcField = Clamp(
+                        (field->weight / distSqr) * 100.0f, -20.0f, 20.0f);
+                    if (absf(calcField) < 2.0f)
+                        continue;
+
+                    forces[i][j] =
+                        Vector2Add(Vector2Scale(Vector2Unit(subVec), calcField),
+                                   forces[i][j]);
+                }
+        }
+        for (uint32_t i = 0; i < DOT_ROW; i++)
+            for (uint32_t j = 0; j < DOT_COL; j++) {
+                int32_t px = i * 10, py = j * 10;
+                Vector2 f = Vector2Add(forces[i][j],
+                                       (Vector2){(float_t)px, (float_t)py});
+                int32_t ex = (int32_t)f.x, ey = (int32_t)f.y;
+                if (ex != px || ey != py) {
+                    DrawLine(px, py, ex, ey, RED);
+                }
             }
-        DrawFPS(0, 0);
         EndMode2D();
+        DrawFPS(0, 0);
+        DrawText(TextFormat("Fields: %d", fieldSize), 0, 30, 30, GREEN);
         // stop command buffer recording
         EndDrawing();
     }
