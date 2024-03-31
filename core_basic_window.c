@@ -24,22 +24,22 @@
 #define MAX_FIELDS 1000
 
 Camera2D camera;
-inline float_t Vector2MagnitudeSqr(Vector2 const x) {
+float_t Vector2MagnitudeSqr(Vector2 const x) {
     return x.x * x.x + x.y * x.y;
 }
 
-inline float_t Vector2Magnitude(Vector2 const x) {
+ float_t Vector2Magnitude(Vector2 const x) {
     return sqrtf(x.x * x.x + x.y * x.y);
 }
 
-inline Vector2 Vector2Unit(Vector2 const x) {
+Vector2 Vector2Unit(Vector2 const x) {
     float_t mag = Vector2Magnitude(x);
     if (mag == 0.0f)
         return x;
     return (Vector2){x.x / mag, x.y / mag};
 }
 
-inline float_t absf(float_t x) { return x < 0.0f ? -x : x; }
+float_t absf(float_t x) { return x < 0.0f ? -x : x; }
 
 typedef struct {
     Vector2 origin;

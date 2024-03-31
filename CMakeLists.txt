@@ -3,6 +3,9 @@ project(example)
 
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(C_STANDARD 17)
+set(CXX_STANDARD 17)
+
 
 # Dependencies
 set(RAYLIB_VERSION 5.0)
