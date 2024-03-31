@@ -168,7 +168,7 @@ void UpdateDrawFrame() {
         EndMode2D();
         DrawFPS(0, 0);
         DrawText(TextFormat("Fields: %d", fieldSize), 0, 30, 30, GREEN);
-        // stop command buffer recording
-        EndDrawing();
     }
+    // stop command buffer recording
+    EndDrawing();
 }
