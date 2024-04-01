@@ -2,9 +2,8 @@
  *   raylib [core] example - Basic window (adapted for HTML5 platform)
  ********************************************************************************************/
 
-#include "raylib.h"
-#include "raymath.h"
-#include <stdint.h>
+#include "utils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,27 +18,11 @@
 #define DOT_ROW 100
 #define DOT_COL 100
 
-#define LIGHT_SPEED 100000.0f
+#define LIGHT_SPEED 10000.0f
 
 #define MAX_FIELDS 1000
 
 Camera2D camera;
-float_t Vector2MagnitudeSqr(Vector2 const x) {
-    return x.x * x.x + x.y * x.y;
-}
-
- float_t Vector2Magnitude(Vector2 const x) {
-    return sqrtf(x.x * x.x + x.y * x.y);
-}
-
-Vector2 Vector2Unit(Vector2 const x) {
-    float_t mag = Vector2Magnitude(x);
-    if (mag == 0.0f)
-        return x;
-    return (Vector2){x.x / mag, x.y / mag};
-}
-
-float_t absf(float_t x) { return x < 0.0f ? -x : x; }
 
 typedef struct {
     Vector2 origin;
