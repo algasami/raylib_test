@@ -41,7 +41,7 @@ uint32_t b_focused = 0, b_slowmo = 1;
 
 void UpdateDrawFrame();
 int main() {
-    srand(time(NULL));
+    srand((uint32_t)time(NULL));
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "basic window");
 
@@ -59,7 +59,7 @@ int main() {
                                    ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
         objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 2000.0f,
-                                100.0f, MAXFLOAT);
+                                100.0f, 10000.0f);
         objects[i].radius = objects[i].mass * 0.01f;
         objects[i].color =
             (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
