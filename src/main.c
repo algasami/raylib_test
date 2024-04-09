@@ -7,40 +7,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 
-#define SCREEN_WIDTH 1200
+#define SCREEN_WIDTH 1400
 #define SCREEN_HEIGHT 1200
 
 #define DOT_ROW 100
 #define DOT_COL 100
 
+#define BORDER_RADIUS 800.0f
+
+#define SPAWN_RADIUS 500.0f
+
 #define LIGHT_SPEED 10000.0f
 
-#define MAX_FIELDS 1000
+#define MAX_OBJECTS 500
 
 Camera2D camera;
 
 typedef struct {
-    Vector2 origin;
-    float_t startTime;
-    float_t weight; // for g field, it's GM. for e field, it's kQ
-} ForceField;
+    Vector2 pos, vel, acc;
+    float_t mass, radius;
+    Color color;
+} Object2D;
 
-ForceField *currentFields;
-Vector2 (*forces)[DOT_COL];
-size_t fieldSize = 0;
+Object2D objects[MAX_OBJECTS];
+size_t object_count = MAX_OBJECTS;
+size_t focus_id = 0;
+uint32_t b_focused = 0, b_slowmo = 1;
 
 void UpdateDrawFrame();
 int main() {
-    // Initialization
-    currentFields = (ForceField *)malloc(MAX_FIELDS * sizeof(ForceField));
-    forces = (Vector2(*)[DOT_COL])malloc(DOT_ROW * DOT_COL * sizeof(Vector2));
-    // ^ mental gymnastics!
-
+    srand(time(NULL));
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "basic window");
 
@@ -49,6 +51,20 @@ int main() {
     camera.rotation = 0.0f;
     camera.target = (Vector2){0.0f, 0.0f};
     camera.zoom = 2.0f;
+
+    for (size_t i = 0; i < MAX_OBJECTS; i++) {
+        float_t rx = ((float_t)rand() / (float_t)RAND_MAX);
+        float_t ry = ((float_t)rand() / (float_t)RAND_MAX);
+        objects[i].acc = (Vector2){0.0f, 0.0f};
+        objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS,
+                                   ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
+        objects[i].vel = (Vector2){0.0f, 0.0f};
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 200.0f,
+                                100.0f, MAXFLOAT);
+        objects[i].radius = objects[i].mass * 0.1f;
+        objects[i].color =
+            (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
+    }
 
     EnableCursor();
 
@@ -65,10 +81,50 @@ int main() {
 
     CloseWindow();
 
-    free(currentFields);
-    free(forces);
-
     return 0;
+}
+
+void CalculatePhysics(float_t dt) {
+    if (b_slowmo) {
+        dt = dt / 50.0f;
+    }
+    for (size_t i = 0; i < object_count; i++) {
+        objects[i].acc = (Vector2){0.0f, 0.0f};
+    }
+
+    for (size_t i = 0; i < object_count; i++) {
+        Object2D *const a = objects + i;
+        for (size_t j = i + 1; j < object_count; j++) {
+            Object2D *const b = objects + j;
+
+            Vector2 vab = Vector2Subtract(b->pos, a->pos);
+            float_t magsqr = Vector2MagnitudeSqr(vab);
+            if (sqrtf(magsqr) < a->radius + b->radius) {
+                continue;
+            }
+            float_t force_mag = (a->mass * b->mass) * 1000.0f / magsqr;
+
+            a->acc = Vector2Add(
+                a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
+            b->acc = Vector2Add(
+                b->acc, Vector2Scale(Vector2Unit(vab), -force_mag / b->mass));
+        }
+    }
+
+    for (size_t i = 0; i < object_count; i++) {
+
+        // TODO: This elastic collision is inaccurate! Fix!
+        if (Vector2Distance(objects[i].pos, (Vector2){0.0f, 0.0f}) >
+            BORDER_RADIUS) {
+            objects[i].vel = Vector2Scale(objects[i].vel, -1.0f);
+        }
+        objects[i].pos = Vector2Add(
+            objects[i].pos,
+            Vector2Add(Vector2Scale(objects[i].vel, dt),
+                       Vector2Scale(objects[i].acc, 0.5f * dt * dt)));
+        objects[i].vel =
+            Vector2Add(objects[i].vel, Vector2Scale(objects[i].acc, dt));
+    }
 }
 
 void UpdateDrawFrame() {
@@ -87,9 +143,24 @@ void UpdateDrawFrame() {
         camera.target =
             Vector2Add(Vector2Scale(GetMouseDelta(), 100.0f * dt / camera.zoom),
                        camera.target);
+    } else if (b_focused) {
+        camera.target = objects[focus_id].pos;
     }
+
+    if (IsKeyPressed(KEY_T)) {
+        b_slowmo = !b_slowmo;
+    }
+
+    if (IsKeyPressed(KEY_LEFT)) {
+        focus_id = focus_id ? focus_id - 1 : MAX_OBJECTS - 1;
+        b_focused = 1;
+    } else if (IsKeyPressed(KEY_RIGHT)) {
+        focus_id = (focus_id + 1) % MAX_OBJECTS;
+        b_focused = 1;
+    }
+
     camera.zoom =
-        Clamp(camera.zoom + GetMouseWheelMove() * 300.0f * dt, 2.0f, 100.0f);
+        Clamp(camera.zoom + GetMouseWheelMove() * 300.0f * dt, 2.0f, 1000.0f);
 
     // This converts our mouse cursor (local relative to window)
     // to absolute coord with camera
@@ -108,49 +179,35 @@ void UpdateDrawFrame() {
     }
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        currentFields[fieldSize++] = (ForceField){cursorPos, ft, 1000.0f};
+        if (b_focused) {
+            b_focused = 0;
+        } else {
+            for (size_t i = 0; i < MAX_OBJECTS; i++) {
+                float_t dist = Vector2Distance(cursorPos, objects[i].pos);
+                if (dist < objects[i].radius) {
+                    focus_id = i;
+                    b_focused = 1;
+                    break;
+                }
+            }
+        }
     }
 
-    // start command buffer recording
-    memset(forces, 0, DOT_ROW * DOT_COL * sizeof(Vector2));
+    CalculatePhysics(dt);
     BeginDrawing();
     {
         BeginMode2D(camera);
-        for (uint32_t f = 0; f < fieldSize; f++) {
-            ForceField *const field = &currentFields[f];
-            float delta = ft - field->startTime;
-            for (uint32_t i = 0; i < DOT_ROW; i++)
-                for (uint32_t j = 0; j < DOT_COL; j++) {
-                    int32_t px = i * 10, py = j * 10;
-                    Vector2 pos = (Vector2){(float_t)px, (float_t)py};
-                    Vector2 subVec = Vector2Subtract(field->origin, pos);
-                    float_t distSqr = Vector2MagnitudeSqr(subVec);
-                    if (distSqr / LIGHT_SPEED > delta)
-                        continue;
-
-                    float_t calcField = Clamp(
-                        (field->weight / distSqr) * 100.0f, -20.0f, 20.0f);
-                    if (absf(calcField) < 2.0f)
-                        continue;
-
-                    forces[i][j] =
-                        Vector2Add(Vector2Scale(Vector2Unit(subVec), calcField),
-                                   forces[i][j]);
-                }
+        for (size_t i = 0; i < object_count; i++) {
+            DrawCircle((int32_t)objects[i].pos.x, (int32_t)objects[i].pos.y,
+                       objects[i].radius, objects[i].color);
         }
-        for (uint32_t i = 0; i < DOT_ROW; i++)
-            for (uint32_t j = 0; j < DOT_COL; j++) {
-                int32_t px = i * 10, py = j * 10;
-                Vector2 f = Vector2Add(forces[i][j],
-                                       (Vector2){(float_t)px, (float_t)py});
-                int32_t ex = (int32_t)f.x, ey = (int32_t)f.y;
-                if (ex != px || ey != py) {
-                    DrawLine(px, py, ex, ey, RED);
-                }
-            }
+        DrawCircleLines(0, 0, BORDER_RADIUS, WHITE);
         EndMode2D();
         DrawFPS(0, 0);
-        DrawText(TextFormat("Fields: %d", fieldSize), 0, 30, 30, GREEN);
+        if (b_focused)
+            DrawText(TextFormat("Focused: %u", focus_id), 0, 30, 30, GREEN);
+        if (b_slowmo)
+            DrawText("Slowmo Active", 0, 60, 30, GREEN);
     }
     // stop command buffer recording
     EndDrawing();
