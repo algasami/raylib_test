@@ -13,8 +13,8 @@
 #include <emscripten/emscripten.h>
 #endif
 
-#define SCREEN_WIDTH 1400
-#define SCREEN_HEIGHT 1200
+#define SCREEN_WIDTH 1500
+#define SCREEN_HEIGHT 1000
 
 #define DOT_ROW 100
 #define DOT_COL 100
@@ -25,8 +25,7 @@
 
 #define LIGHT_SPEED 10000.0f
 
-#define MAX_OBJECTS 500
-
+#define MAX_OBJECTS 50
 Camera2D camera;
 
 typedef struct {
@@ -59,9 +58,9 @@ int main() {
         objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS,
                                    ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
-        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 200.0f,
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 2000.0f,
                                 100.0f, MAXFLOAT);
-        objects[i].radius = objects[i].mass * 0.1f;
+        objects[i].radius = objects[i].mass * 0.01f;
         objects[i].color =
             (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
     }
@@ -102,7 +101,7 @@ void CalculatePhysics(float_t dt) {
             if (sqrtf(magsqr) < a->radius + b->radius) {
                 continue;
             }
-            float_t force_mag = (a->mass * b->mass) * 1000.0f / magsqr;
+            float_t force_mag = (a->mass * b->mass) * 100.0f / magsqr;
 
             a->acc = Vector2Add(
                 a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
@@ -118,6 +117,10 @@ void CalculatePhysics(float_t dt) {
             BORDER_RADIUS) {
             objects[i].vel = Vector2Scale(objects[i].vel, -1.0f);
         }
+        objects[i].acc =
+            Vector2Add(objects[i].acc,
+                       Vector2Scale(objects[i].vel, -0.02f * objects[i].radius *
+                                                        objects[i].radius));
         objects[i].pos = Vector2Add(
             objects[i].pos,
             Vector2Add(Vector2Scale(objects[i].vel, dt),
