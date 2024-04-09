@@ -99,6 +99,7 @@ void CalculatePhysics(float_t dt) {
             Vector2 vab = Vector2Subtract(b->pos, a->pos);
             float_t magsqr = Vector2MagnitudeSqr(vab);
             if (sqrtf(magsqr) < a->radius + b->radius) {
+                // TODO: elastic collision
                 continue;
             }
             float_t force_mag = (a->mass * b->mass) * 100.0f / magsqr;
