@@ -105,13 +105,14 @@ void CalculatePhysics(float_t dt) {
     }
 
     for (size_t i = 0; i < object_count; i++) {
-
-        // TODO: This elastic collision is inaccurate! Fix!
         if (Vector2Distance(objects[i].pos, (Vector2){0.0f, 0.0f}) > BORDER_RADIUS) {
-            objects[i].vel = Vector2Scale(objects[i].vel, -1.0f);
+            Vector2 vel_n = Vector2Project(objects[i].pos, objects[i].vel);
+            Vector2 vel_t = Vector2Subtract(objects[i].vel, vel_n);
+            objects[i].vel = Vector2Add(Vector2Scale(vel_n, -1.0f), vel_t);
         }
         objects[i].acc =
-            Vector2Add(objects[i].acc, Vector2Scale(objects[i].vel, -0.02f * objects[i].radius * objects[i].radius));
+            Vector2Add(objects[i].acc,
+                       Vector2Scale(objects[i].vel, -0.02f * objects[i].radius * objects[i].radius / objects[i].mass));
         objects[i].pos = Vector2Add(
             objects[i].pos, Vector2Add(Vector2Scale(objects[i].vel, dt), Vector2Scale(objects[i].acc, 0.5f * dt * dt)));
         objects[i].vel = Vector2Add(objects[i].vel, Vector2Scale(objects[i].acc, dt));
