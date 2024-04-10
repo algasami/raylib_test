@@ -25,7 +25,12 @@
 
 #define LIGHT_SPEED 10000.0f
 
-#define MAX_OBJECTS 50
+#define ELASTIC_DECAY 0.1f
+
+#define G_CONSTANT 200.0f
+
+#define MAX_OBJECTS 5000
+
 Camera2D camera;
 
 typedef struct {
@@ -35,9 +40,25 @@ typedef struct {
 } Object2D;
 
 Object2D objects[MAX_OBJECTS];
-size_t object_count = MAX_OBJECTS;
+size_t object_count = 100;
 size_t focus_id = 0;
 uint32_t b_focused = 0, b_slowmo = 1;
+
+static inline size_t spawnCircle(float_t x, float_t y) {
+    if (object_count + 1 > MAX_OBJECTS)
+        return 0;
+    size_t i = object_count++;
+    objects[i].acc = (Vector2){0.0f, 0.0f};
+    objects[i].pos = (Vector2){x, y};
+    objects[i].vel =
+        (Vector2){((float_t)rand() / (float_t)RAND_MAX) * 3.0f, ((float_t)rand() / (float_t)RAND_MAX) * 3.0f};
+    objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 100.0f, 3000.0f);
+    objects[i].radius = objects[i].mass * 0.01f;
+    objects[i].color = (Color){(uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f),
+                               (uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f), 100, 255};
+
+    return i;
+}
 
 void UpdateDrawFrame();
 int main() {
@@ -50,13 +71,13 @@ int main() {
     camera.target = (Vector2){0.0f, 0.0f};
     camera.zoom = 2.0f;
 
-    for (size_t i = 0; i < MAX_OBJECTS; i++) {
+    for (size_t i = 0; i < object_count; i++) {
         float_t rx = ((float_t)rand() / (float_t)RAND_MAX);
         float_t ry = ((float_t)rand() / (float_t)RAND_MAX);
         objects[i].acc = (Vector2){0.0f, 0.0f};
         objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS, ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
-        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 2000.0f, 100.0f, 10000.0f);
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 100.0f, 3000.0f);
         objects[i].radius = objects[i].mass * 0.01f;
         objects[i].color = (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
     }
@@ -94,22 +115,58 @@ void CalculatePhysics(float_t dt) {
 
             Vector2 vab = Vector2Subtract(b->pos, a->pos);
             float_t magsqr = Vector2MagnitudeSqr(vab);
-            if (sqrtf(magsqr) < a->radius + b->radius) {
+            float_t dist = sqrtf(magsqr);
+            if (dist < a->radius + b->radius) {
                 // TODO: elastic collision
+
+                // vab: normal
+                Vector2 u1 = Vector2Project(vab, a->vel);
+                Vector2 u2 = Vector2Project(vab, b->vel);
+                Vector2 avel_t = Vector2Subtract(a->vel, u1);
+                Vector2 bvel_t = Vector2Subtract(b->vel, u2);
+
+                Vector2 v1 = Vector2Add(Vector2Scale(u1, (a->mass - b->mass) / (a->mass + b->mass)),
+                                        Vector2Scale(u2, (2 * b->mass) / (a->mass + b->mass)));
+                Vector2 v2 = Vector2Add(Vector2Scale(u1, (2 * a->mass) / (a->mass + b->mass)),
+                                        Vector2Scale(u2, (b->mass - a->mass) / (a->mass + b->mass)));
+
+                if (Vector2Magnitude(a->vel) < 0.1f) {
+                    a->vel = (Vector2){0.0f, 0.0f};
+                } else {
+                    a->vel = Vector2Scale(Vector2Add(v1, avel_t), 1.0f - ELASTIC_DECAY);
+                }
+                if (Vector2Magnitude(b->vel) < 0.1f) {
+                    b->vel = (Vector2){0.0f, 0.0f};
+                } else {
+                    b->vel = Vector2Scale(Vector2Add(v2, bvel_t), 1.0f - ELASTIC_DECAY);
+                }
+
+                float offset = ((a->radius + b->radius) - dist) / 2.0f;
+                if (offset > 0.0f) {
+                    a->pos = Vector2Add(Vector2Scale(Vector2Unit(vab), -offset), a->pos);
+                    b->pos = Vector2Add(Vector2Scale(Vector2Unit(vab), offset), b->pos);
+                }
+
                 continue;
             }
-            float_t force_mag = (a->mass * b->mass) * 100.0f / magsqr;
+            float_t force_mag = (a->mass * b->mass) * G_CONSTANT / magsqr;
             a->acc = Vector2Add(a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
             b->acc = Vector2Add(b->acc, Vector2Scale(Vector2Unit(vab), -force_mag / b->mass));
         }
     }
 
     for (size_t i = 0; i < object_count; i++) {
-        if (Vector2Distance(objects[i].pos, (Vector2){0.0f, 0.0f}) > BORDER_RADIUS) {
+        float_t dist = Vector2Magnitude(objects[i].pos);
+        if (dist > BORDER_RADIUS) {
             Vector2 vel_n = Vector2Project(objects[i].pos, objects[i].vel);
             Vector2 vel_t = Vector2Subtract(objects[i].vel, vel_n);
             objects[i].vel = Vector2Add(Vector2Scale(vel_n, -1.0f), vel_t);
+
+            objects[i].pos =
+                Vector2Add(objects[i].pos, Vector2Scale(Vector2Unit(objects[i].pos), -(dist - BORDER_RADIUS)));
         }
+
+        // * Verlet Integration: error term is O(dt*dt)
         objects[i].acc =
             Vector2Add(objects[i].acc,
                        Vector2Scale(objects[i].vel, -0.02f * objects[i].radius * objects[i].radius / objects[i].mass));
@@ -162,6 +219,10 @@ void UpdateDrawFrame() {
                                camera.target);
     } else {
         cursorPos = camera.target;
+    }
+
+    if (IsKeyDown(KEY_S)) {
+        spawnCircle(cursorPos.x, cursorPos.y);
     }
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
