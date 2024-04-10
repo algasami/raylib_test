@@ -120,10 +120,9 @@ void CalculatePhysics(float_t dt) {
                 // TODO: elastic collision
 
                 // vab: normal
-                Vector2 u1 = Vector2Project(vab, a->vel);
-                Vector2 u2 = Vector2Project(vab, b->vel);
-                Vector2 avel_t = Vector2Subtract(a->vel, u1);
-                Vector2 bvel_t = Vector2Subtract(b->vel, u2);
+                Vector2 u1, avel_t, u2, bvel_t;
+                Vector2Separate(vab, a->vel, &u1, &avel_t);
+                Vector2Separate(vab, b->vel, &u2, &bvel_t);
 
                 Vector2 v1 = Vector2Add(Vector2Scale(u1, (a->mass - b->mass) / (a->mass + b->mass)),
                                         Vector2Scale(u2, (2 * b->mass) / (a->mass + b->mass)));
@@ -158,8 +157,8 @@ void CalculatePhysics(float_t dt) {
     for (size_t i = 0; i < object_count; i++) {
         float_t dist = Vector2Magnitude(objects[i].pos);
         if (dist > BORDER_RADIUS) {
-            Vector2 vel_n = Vector2Project(objects[i].pos, objects[i].vel);
-            Vector2 vel_t = Vector2Subtract(objects[i].vel, vel_n);
+            Vector2 vel_n, vel_t;
+            Vector2Separate(objects[i].pos, objects[i].vel, &vel_n, &vel_t);
             objects[i].vel = Vector2Add(Vector2Scale(vel_n, -1.0f), vel_t);
 
             objects[i].pos =
