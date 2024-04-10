@@ -45,8 +45,7 @@ int main() {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "basic window");
 
-    camera.offset =
-        (Vector2){(float)SCREEN_WIDTH / 2.0f, (float)SCREEN_HEIGHT / 2.0f};
+    camera.offset = (Vector2){(float)SCREEN_WIDTH / 2.0f, (float)SCREEN_HEIGHT / 2.0f};
     camera.rotation = 0.0f;
     camera.target = (Vector2){0.0f, 0.0f};
     camera.zoom = 2.0f;
@@ -55,14 +54,11 @@ int main() {
         float_t rx = ((float_t)rand() / (float_t)RAND_MAX);
         float_t ry = ((float_t)rand() / (float_t)RAND_MAX);
         objects[i].acc = (Vector2){0.0f, 0.0f};
-        objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS,
-                                   ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
+        objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS, ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
-        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 2000.0f,
-                                100.0f, 10000.0f);
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 2000.0f, 100.0f, 10000.0f);
         objects[i].radius = objects[i].mass * 0.01f;
-        objects[i].color =
-            (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
+        objects[i].color = (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
     }
 
     EnableCursor();
@@ -103,31 +99,22 @@ void CalculatePhysics(float_t dt) {
                 continue;
             }
             float_t force_mag = (a->mass * b->mass) * 100.0f / magsqr;
-
-            a->acc = Vector2Add(
-                a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
-            b->acc = Vector2Add(
-                b->acc, Vector2Scale(Vector2Unit(vab), -force_mag / b->mass));
+            a->acc = Vector2Add(a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
+            b->acc = Vector2Add(b->acc, Vector2Scale(Vector2Unit(vab), -force_mag / b->mass));
         }
     }
 
     for (size_t i = 0; i < object_count; i++) {
 
         // TODO: This elastic collision is inaccurate! Fix!
-        if (Vector2Distance(objects[i].pos, (Vector2){0.0f, 0.0f}) >
-            BORDER_RADIUS) {
+        if (Vector2Distance(objects[i].pos, (Vector2){0.0f, 0.0f}) > BORDER_RADIUS) {
             objects[i].vel = Vector2Scale(objects[i].vel, -1.0f);
         }
         objects[i].acc =
-            Vector2Add(objects[i].acc,
-                       Vector2Scale(objects[i].vel, -0.02f * objects[i].radius *
-                                                        objects[i].radius));
+            Vector2Add(objects[i].acc, Vector2Scale(objects[i].vel, -0.02f * objects[i].radius * objects[i].radius));
         objects[i].pos = Vector2Add(
-            objects[i].pos,
-            Vector2Add(Vector2Scale(objects[i].vel, dt),
-                       Vector2Scale(objects[i].acc, 0.5f * dt * dt)));
-        objects[i].vel =
-            Vector2Add(objects[i].vel, Vector2Scale(objects[i].acc, dt));
+            objects[i].pos, Vector2Add(Vector2Scale(objects[i].vel, dt), Vector2Scale(objects[i].acc, 0.5f * dt * dt)));
+        objects[i].vel = Vector2Add(objects[i].vel, Vector2Scale(objects[i].acc, dt));
     }
 }
 
@@ -144,9 +131,7 @@ void UpdateDrawFrame() {
     }
 
     if (IsCursorHidden()) {
-        camera.target =
-            Vector2Add(Vector2Scale(GetMouseDelta(), 100.0f * dt / camera.zoom),
-                       camera.target);
+        camera.target = Vector2Add(Vector2Scale(GetMouseDelta(), 100.0f * dt / camera.zoom), camera.target);
     } else if (b_focused) {
         camera.target = objects[focus_id].pos;
     }
@@ -163,21 +148,17 @@ void UpdateDrawFrame() {
         b_focused = 1;
     }
 
-    camera.zoom =
-        Clamp(camera.zoom + GetMouseWheelMove() * 300.0f * dt, 2.0f, 1000.0f);
+    camera.zoom = Clamp(camera.zoom + GetMouseWheelMove() * 300.0f * dt, 2.0f, 1000.0f);
 
     // This converts our mouse cursor (local relative to window)
     // to absolute coord with camera
     Vector2 cursorPos;
     if (!IsCursorHidden()) {
         Vector2 rawPos = GetMousePosition();
-        cursorPos = Vector2Add(
-            Vector2Scale((Vector2){(rawPos.x / (float)SCREEN_WIDTH - 0.5f) *
-                                       (float)SCREEN_WIDTH,
-                                   (rawPos.y / (float)SCREEN_HEIGHT - 0.5f) *
-                                       (float)SCREEN_HEIGHT},
-                         1.0f / camera.zoom),
-            camera.target);
+        cursorPos = Vector2Add(Vector2Scale((Vector2){(rawPos.x / (float)SCREEN_WIDTH - 0.5f) * (float)SCREEN_WIDTH,
+                                                      (rawPos.y / (float)SCREEN_HEIGHT - 0.5f) * (float)SCREEN_HEIGHT},
+                                            1.0f / camera.zoom),
+                               camera.target);
     } else {
         cursorPos = camera.target;
     }
@@ -202,8 +183,7 @@ void UpdateDrawFrame() {
     {
         BeginMode2D(camera);
         for (size_t i = 0; i < object_count; i++) {
-            DrawCircle((int32_t)objects[i].pos.x, (int32_t)objects[i].pos.y,
-                       objects[i].radius, objects[i].color);
+            DrawCircle((int32_t)objects[i].pos.x, (int32_t)objects[i].pos.y, objects[i].radius, objects[i].color);
         }
         DrawCircleLines(0, 0, BORDER_RADIUS, WHITE);
         EndMode2D();
