@@ -19,13 +19,13 @@
 #define DOT_ROW 100
 #define DOT_COL 100
 
-#define BORDER_RADIUS 800.0f
+#define BORDER_RADIUS 1600.0f
 
-#define SPAWN_RADIUS 500.0f
+#define SPAWN_RADIUS 1500.0f
 
 #define LIGHT_SPEED 10000.0f
 
-#define ELASTIC_DECAY 0.1f
+#define ELASTIC_DECAY 0.05f
 
 #define G_CONSTANT 200.0f
 
@@ -40,7 +40,7 @@ typedef struct {
 } Object2D;
 
 Object2D objects[MAX_OBJECTS];
-size_t object_count = 100;
+size_t object_count = 200;
 size_t focus_id = 0;
 uint32_t b_focused = 0, b_slowmo = 1;
 
@@ -52,7 +52,7 @@ static inline size_t spawnCircle(float_t x, float_t y) {
     objects[i].pos = (Vector2){x, y};
     objects[i].vel =
         (Vector2){((float_t)rand() / (float_t)RAND_MAX) * 3.0f, ((float_t)rand() / (float_t)RAND_MAX) * 3.0f};
-    objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 100.0f, 3000.0f);
+    objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 200.0f, 3000.0f);
     objects[i].radius = objects[i].mass * 0.01f;
     objects[i].color = (Color){(uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f),
                                (uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f), 100, 255};
@@ -77,7 +77,7 @@ int main() {
         objects[i].acc = (Vector2){0.0f, 0.0f};
         objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS, ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
-        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 100.0f, 3000.0f);
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 200.0f, 3000.0f);
         objects[i].radius = objects[i].mass * 0.01f;
         objects[i].color = (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
     }
@@ -102,7 +102,7 @@ int main() {
 
 void CalculatePhysics(float_t dt) {
     if (b_slowmo) {
-        dt = dt / 50.0f;
+        dt = dt / 2000.0f;
     }
     for (size_t i = 0; i < object_count; i++) {
         objects[i].acc = (Vector2){0.0f, 0.0f};
@@ -145,8 +145,6 @@ void CalculatePhysics(float_t dt) {
                     a->pos = Vector2Add(Vector2Scale(Vector2Unit(vab), -offset), a->pos);
                     b->pos = Vector2Add(Vector2Scale(Vector2Unit(vab), offset), b->pos);
                 }
-
-                continue;
             }
             float_t force_mag = (a->mass * b->mass) * G_CONSTANT / magsqr;
             a->acc = Vector2Add(a->acc, Vector2Scale(Vector2Unit(vab), force_mag / a->mass));
