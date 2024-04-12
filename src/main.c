@@ -25,9 +25,9 @@
 
 #define LIGHT_SPEED 10000.0f
 
-#define ELASTIC_DECAY 0.05f
+#define ELASTIC_DECAY 0.1f
 
-#define G_CONSTANT 200.0f
+#define G_CONSTANT 500.0f
 
 #define MAX_OBJECTS 5000
 
@@ -40,7 +40,7 @@ typedef struct {
 } Object2D;
 
 Object2D objects[MAX_OBJECTS];
-size_t object_count = 200;
+size_t object_count = 500;
 size_t focus_id = 0;
 uint32_t b_focused = 0, b_slowmo = 1;
 
@@ -52,7 +52,7 @@ static inline size_t spawnCircle(float_t x, float_t y) {
     objects[i].pos = (Vector2){x, y};
     objects[i].vel =
         (Vector2){((float_t)rand() / (float_t)RAND_MAX) * 3.0f, ((float_t)rand() / (float_t)RAND_MAX) * 3.0f};
-    objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 200.0f, 3000.0f);
+    objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 500.0f, 3000.0f);
     objects[i].radius = objects[i].mass * 0.01f;
     objects[i].color = (Color){(uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f),
                                (uint8_t)(((float_t)rand() / (float_t)RAND_MAX) * 255.0f), 100, 255};
@@ -77,7 +77,7 @@ int main() {
         objects[i].acc = (Vector2){0.0f, 0.0f};
         objects[i].pos = (Vector2){rx * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS, ry * 2.0f * SPAWN_RADIUS - SPAWN_RADIUS};
         objects[i].vel = (Vector2){0.0f, 0.0f};
-        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 200.0f, 3000.0f);
+        objects[i].mass = Clamp(((float_t)rand() / (float_t)RAND_MAX) * 3000.0f, 500.0f, 3000.0f);
         objects[i].radius = objects[i].mass * 0.01f;
         objects[i].color = (Color){(uint8_t)(rx * 255.0f), (uint8_t)(ry * 255.0f), 100, 255};
     }
