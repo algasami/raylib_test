@@ -28,19 +28,19 @@ endif()
 
 # Our Project
 
-add_executable(${PROJECT_NAME} src/main.c src/utils.h)
+add_executable(gravity_sim src/gravity_sim.c src/utils.h)
 #set(raylib_VERBOSE 1)
-target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(gravity_sim raylib)
 
 # Web Configurations
 if (${PLATFORM} STREQUAL "Web")
     # Tell Emscripten to build an example.html file.
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+    set_target_properties(gravity_sim PROPERTIES SUFFIX ".html")
 endif()
 
 # Checks if OSX and links appropriate frameworks (Only required on MacOS)
 if (APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
-    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
-    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
+    target_link_libraries(gravity_sim "-framework IOKit")
+    target_link_libraries(gravity_sim "-framework Cocoa")
+    target_link_libraries(gravity_sim "-framework OpenGL")
 endif()
