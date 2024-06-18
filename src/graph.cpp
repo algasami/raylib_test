@@ -19,10 +19,23 @@ struct Edge {
     int weight;
 };
 
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Vec, Edge> SimpleGraph;
+
+SimpleGraph graph;
+
 void UpdateDrawFrame();
 int main() {
 
-    boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, Vec, Edge> g;
+    for (int i = 0; i < 10; i++) {
+        auto vert = boost::add_vertex({i}, graph);
+    }
+    for (int i = 0; i < 9; i++) {
+        for (int j = i + 1; j < 10; j++) {
+        }
+    }
+
+    boost::print_graph(graph, boost::get(&Vec::key, graph));
+
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "basic window");
 
