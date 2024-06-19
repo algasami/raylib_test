@@ -37,8 +37,8 @@ target_link_libraries(graph raylib)
 set(BOOST_INCLUDEDIR C:/local/boost_1_85_0)
 set(BOOST_LIBRARYDIR C:/local/boost_1_85_0/libs)
 
-find_package(Boost 1.85 COMPONENTS graph REQUIRED )
-target_link_libraries(graph Boost::graph)
+find_package(Boost 1.85 COMPONENTS graph  REQUIRED )
+target_link_libraries(graph Boost::graph )
 
 
 # Web Configurations
