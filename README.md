@@ -18,7 +18,9 @@ at _**130~ FPS**_.
 
 This is a simple graph visualizer built on top of Boost Graph
 Library (BGL). Clicking on nodes enables "connection mode", when
-you can click on another node to connect them together.
+you can click on another node to connect them together. Purple
+nodes are articulation points, which, when broken, will split the
+graph into two disjoint graphs.
 
 ### Keybindings
 

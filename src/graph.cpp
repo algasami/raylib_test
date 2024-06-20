@@ -10,6 +10,8 @@
 #include <boost/graph/random_layout.hpp>
 #include <boost/graph/topology.hpp>
 #include <random>
+#include <unordered_map>
+#include <unordered_set>
 
 constexpr unsigned int SCREEN_WIDTH = 1500;
 constexpr unsigned int SCREEN_HEIGHT = 1000;
@@ -82,7 +84,52 @@ int main() {
     return 0;
 }
 
+void tarjan(const vertex_t current, const vertex_t parent, int &time, std::unordered_set<vertex_t> &visited,
+            std::unordered_map<vertex_t, int> &discovery, std::unordered_map<vertex_t, int> &lowpoint,
+            std::unordered_set<vertex_t> &aps) {
+    time++;
+    size_t children = 0;
+    bool isroot = current == parent;
+
+    visited.insert(current);
+    discovery[current] = lowpoint[current] = time;
+
+    boost::graph_traits<simplegraph_t>::adjacency_iterator iter, end;
+    for (boost::tie(iter, end) = boost::adjacent_vertices(current, graph); iter != end; iter++) {
+        if (visited.find(*iter) == visited.end()) // not visited
+        {
+            children++;
+            tarjan(*iter, current, time, visited, discovery, lowpoint, aps);
+            lowpoint[current] = std::min(lowpoint[current], lowpoint[*iter]);
+            if (!isroot && lowpoint[*iter] >= discovery[current]) {
+                std::cout << current << std::endl;
+                aps.insert(current);
+            }
+        } else {
+            lowpoint[current] = std::min(lowpoint[current], discovery[*iter]);
+        }
+    }
+
+    if (isroot && children >= 2) {
+        std::cout << current << std::endl;
+        aps.insert(current);
+    }
+}
+std::unordered_set<vertex_t> aps;
 void CalculateLayout() {
+    int time;
+    std::unordered_set<vertex_t> visited;
+    std::unordered_map<vertex_t, int> discovery;
+    std::unordered_map<vertex_t, int> lowpoint;
+    aps.clear();
+
+    boost::graph_traits<simplegraph_t>::vertex_iterator iter, end;
+    for (boost::tie(iter, end) = boost::vertices(graph); iter != end; iter++) {
+        if (aps.find(*iter) == aps.end()) {
+            tarjan(*iter, *iter, time, visited, discovery, lowpoint, aps);
+        }
+    }
+
     auto position_map_property =
         boost::make_iterator_property_map(position_map.begin(), boost::get(boost::vertex_index, graph));
 
@@ -106,7 +153,6 @@ bool get_vertex_by_cursor(Vector2 vert, vertex_t &vertex_out) // pass by value b
     boost::graph_traits<simplegraph_t>::vertex_iterator i, end;
     for (boost::tie(i, end) = boost::vertices(graph); i != end; i++) {
         const auto &p = position_map[*i];
-        std::cout << Vector2Distance(vert, Vector2{static_cast<float>(p[0]), static_cast<float>(p[1])}) << std::endl;
         if (Vector2Distance(vert, Vector2{static_cast<float>(p[0]), static_cast<float>(p[1])}) < CIRCLE_RADIUS) {
             vertex_out = *i;
             return true;
@@ -198,11 +244,13 @@ void UpdateDrawFrame() {
         }
         for (boost::tie(i, end) = boost::vertices(graph); i != end; ++i) {
             const auto &p = position_map[*i];
+            Color circle_color = RED;
             if ((b_sel0 && *i == sel0) || (b_sel1 && *i == sel1)) {
-                DrawCircle(static_cast<int>(p[0]), static_cast<int>(p[1]), CIRCLE_RADIUS, BLUE);
-            } else {
-                DrawCircle(static_cast<int>(p[0]), static_cast<int>(p[1]), CIRCLE_RADIUS, RED);
+                circle_color = BLUE;
+            } else if (aps.find(*i) != aps.end()) {
+                circle_color = PURPLE;
             }
+            DrawCircle(static_cast<int>(p[0]), static_cast<int>(p[1]), CIRCLE_RADIUS, circle_color);
             DrawText(std::to_string(boost::get(&Vec::key, graph)[*i]).c_str(), static_cast<int>(p[0]),
                      static_cast<int>(p[1]), 18, BLACK);
         }
