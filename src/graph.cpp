@@ -135,7 +135,7 @@ void CalculateLayout() {
 
     boost::random_graph_layout(graph, position_map_property, topo);
     boost::kamada_kawai_spring_layout(graph, position_map_property, boost::get(&Edge::weight, graph), topo,
-                                      boost::edge_length(100.0));
+                                      boost::edge_length(500.0));
 }
 
 void CalculatePhysics(float_t dt, float_t ft) {
